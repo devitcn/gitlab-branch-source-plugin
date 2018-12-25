@@ -1,16 +1,7 @@
 package argelbargel.jenkins.plugins.gitlab_branch_source.api;
 
-import org.apache.commons.lang.StringUtils;
-import org.gitlab.api.GitlabAPI;
-import org.gitlab.api.http.Query;
-import org.gitlab.api.models.GitlabBranch;
-import org.gitlab.api.models.GitlabCommit;
-import org.gitlab.api.models.GitlabGroup;
-import org.gitlab.api.models.GitlabProject;
-import org.gitlab.api.models.GitlabProjectHook;
-import org.gitlab.api.models.GitlabRepositoryTree;
-import org.gitlab.api.models.GitlabSystemHook;
-import org.gitlab.api.models.GitlabTag;
+import static argelbargel.jenkins.plugins.gitlab_branch_source.api.GitLabProjectSelector.VISIBLE;
+import static argelbargel.jenkins.plugins.gitlab_branch_source.api.GitLabProjectVisibility.ALL;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -23,15 +14,27 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 
-import static argelbargel.jenkins.plugins.gitlab_branch_source.api.GitLabProjectSelector.VISIBLE;
-import static argelbargel.jenkins.plugins.gitlab_branch_source.api.GitLabProjectVisibility.ALL;
+import org.apache.commons.lang.StringUtils;
+import org.gitlab.api.GitlabAPI;
 import org.gitlab.api.http.Method;
+import org.gitlab.api.http.Query;
+import org.gitlab.api.models.GitlabBranch;
+import org.gitlab.api.models.GitlabCommit;
+import org.gitlab.api.models.GitlabGroup;
+import org.gitlab.api.models.GitlabProject;
+import org.gitlab.api.models.GitlabProjectHook;
+import org.gitlab.api.models.GitlabRepositoryTree;
+import org.gitlab.api.models.GitlabSystemHook;
+import org.gitlab.api.models.GitlabTag;
 
+import com.google.common.net.UrlEscapers;
 
 public final class GitLabAPI {
     private static final String PATH_SEP = "/";
 
-    public static GitLabAPI connect(String url, String token, boolean ignoreCertificateErrors, int requestTimeout) throws GitLabAPIException {
+    public static GitLabAPI connect(String url, String token,
+            boolean ignoreCertificateErrors, int requestTimeout)
+            throws GitLabAPIException {
         try {
             apiToken = token;
             GitlabAPI delegate = GitlabAPI.connect(url, token);
@@ -42,7 +45,8 @@ public final class GitLabAPI {
         }
     }
 
-    private static final Logger LOGGER = Logger.getLogger(GitLabAPI.class.getName());
+    private static final Logger LOGGER = Logger
+            .getLogger(GitLabAPI.class.getName());
 
     private final GitlabAPI delegate;
     private static String apiToken;
@@ -53,7 +57,8 @@ public final class GitLabAPI {
 
     public String getVersion() throws GitLabAPIException {
         try {
-            return delegate.retrieve().to("/version", GitLabVersion.class).toString();
+            return delegate.retrieve().to("/version", GitLabVersion.class)
+                    .toString();
         } catch (IOException e) {
             throw new GitLabAPIException(e);
         }
@@ -67,7 +72,8 @@ public final class GitLabAPI {
         return getProject((Serializable) encode(name));
     }
 
-    private GitLabProject getProject(Serializable nameOrId) throws GitLabAPIException {
+    private GitLabProject getProject(Serializable nameOrId)
+            throws GitLabAPIException {
         try {
             String tailUrl = GitlabProject.URL + "/" + nameOrId;
             return delegate.retrieve().to(tailUrl, GitLabProject.class);
@@ -82,7 +88,8 @@ public final class GitLabAPI {
         return getBranches((Serializable) id);
     }
 
-    private List<GitlabBranch> getBranches(Serializable nameOrId) throws GitLabAPIException {
+    private List<GitlabBranch> getBranches(Serializable nameOrId)
+            throws GitLabAPIException {
         try {
             return delegate.getBranches(nameOrId);
         } catch (Exception e) {
@@ -90,9 +97,12 @@ public final class GitLabAPI {
         }
     }
 
-    public GitlabBranch getBranch(int projectId, String branch) throws GitLabAPIException {
+    public GitlabBranch getBranch(int projectId, String branch)
+            throws GitLabAPIException {
         try {
-            String tailUrl = GitlabProject.URL + PATH_SEP + projectId + GitlabBranch.URL + PATH_SEP + URLEncoder.encode(branch, "UTF-8");
+            String tailUrl = GitlabProject.URL + PATH_SEP + projectId
+                    + GitlabBranch.URL + PATH_SEP
+                    + URLEncoder.encode(branch, "UTF-8");
             tailUrl = tailUrl.replaceAll("//", "/");
             return delegate.retrieve().to(tailUrl, GitlabBranch.class);
         } catch (FileNotFoundException e) {
@@ -106,7 +116,8 @@ public final class GitLabAPI {
         return getTags((Serializable) id);
     }
 
-    private List<GitlabTag> getTags(Serializable nameOrId) throws GitLabAPIException {
+    private List<GitlabTag> getTags(Serializable nameOrId)
+            throws GitLabAPIException {
         try {
             return delegate.getTags(nameOrId);
         } catch (Exception e) {
@@ -114,9 +125,12 @@ public final class GitLabAPI {
         }
     }
 
-    public GitlabTag getTag(int projectId, String tag) throws GitLabAPIException {
+    public GitlabTag getTag(int projectId, String tag)
+            throws GitLabAPIException {
         try {
-            String tailUrl = GitlabProject.URL + PATH_SEP + projectId + GitlabTag.URL + PATH_SEP + URLEncoder.encode(tag, "UTF-8");
+            String tailUrl = GitlabProject.URL + PATH_SEP + projectId
+                    + GitlabTag.URL + PATH_SEP
+                    + URLEncoder.encode(tag, "UTF-8");
             return delegate.retrieve().to(tailUrl, GitlabTag.class);
         } catch (FileNotFoundException e) {
             throw new NoSuchElementException("unknown tag " + tag);
@@ -125,47 +139,59 @@ public final class GitLabAPI {
         }
     }
 
-    public List<GitLabMergeRequest> getMergeRequests(int projectId) throws GitLabAPIException {
+    public List<GitLabMergeRequest> getMergeRequests(int projectId)
+            throws GitLabAPIException {
         try {
-            String tailUrl = "/projects/" + projectId + "/merge_requests?state=opened";
-            return delegate.retrieve()
-                    .getAll(tailUrl, GitLabMergeRequest[].class);
+            String tailUrl = "/projects/" + projectId
+                    + "/merge_requests?state=opened";
+            return delegate.retrieve().getAll(tailUrl,
+                    GitLabMergeRequest[].class);
         } catch (Exception e) {
             throw new GitLabAPIException(e);
         }
     }
 
-    public GitLabMergeRequest getMergeRequest(int projectId, String mergeRequestId) throws GitLabAPIException {
+    public GitLabMergeRequest getMergeRequest(int projectId,
+            String mergeRequestId) throws GitLabAPIException {
         return getMergeRequest(projectId, Integer.parseInt(mergeRequestId));
     }
 
-    public GitLabMergeRequest getMergeRequest(int projectId, int mergeRequestId) throws GitLabAPIException {
+    public GitLabMergeRequest getMergeRequest(int projectId, int mergeRequestId)
+            throws GitLabAPIException {
         try {
-            String tailUrl = "/projects/" + projectId + "/merge_requests/" + mergeRequestId;
+            String tailUrl = "/projects/" + projectId + "/merge_requests/"
+                    + mergeRequestId;
             return delegate.retrieve().to(tailUrl, GitLabMergeRequest.class);
         } catch (FileNotFoundException e) {
-            throw new NoSuchElementException("unknown merge-request for project " + projectId + ": " + mergeRequestId);
+            throw new NoSuchElementException(
+                    "unknown merge-request for project " + projectId + ": "
+                            + mergeRequestId);
         } catch (Exception e) {
             throw new GitLabAPIException(e);
         }
     }
 
-    public List<GitLabProject> findProjects(String group, GitLabProjectSelector selector, GitLabProjectVisibility visibility, String searchPattern) throws GitLabAPIException {
-        LOGGER.fine("finding projects for group" + group + ", " + selector + ", " + visibility + ", " + searchPattern + "...");
-        return findProjects(projectUrl(group, selector, visibility, searchPattern));
+    public List<GitLabProject> findProjects(String group,
+            GitLabProjectSelector selector, GitLabProjectVisibility visibility,
+            String searchPattern) throws GitLabAPIException {
+        LOGGER.fine("finding projects for group" + group + ", " + selector
+                + ", " + visibility + ", " + searchPattern + "...");
+        return findProjects(
+                projectUrl(group, selector, visibility, searchPattern));
     }
 
-
-    public List<GitLabProject> findProjects(GitLabProjectSelector selector, GitLabProjectVisibility visibility, String searchPattern) throws GitLabAPIException {
-        LOGGER.fine("finding projects for " + selector + ", " + visibility + ", " + searchPattern + "...");
+    public List<GitLabProject> findProjects(GitLabProjectSelector selector,
+            GitLabProjectVisibility visibility, String searchPattern)
+            throws GitLabAPIException {
+        LOGGER.fine("finding projects for " + selector + ", " + visibility
+                + ", " + searchPattern + "...");
         return findProjects(projectUrl(selector, visibility, searchPattern));
     }
 
-    private List<GitLabProject> findProjects(String url) throws GitLabAPIException {
+    private List<GitLabProject> findProjects(String url)
+            throws GitLabAPIException {
         try {
-            return delegate
-                    .retrieve()
-                    .getAll(url, GitLabProject[].class);
+            return delegate.retrieve().getAll(url, GitLabProject[].class);
         } catch (Exception e) {
             throw new GitLabAPIException(e);
         }
@@ -173,13 +199,15 @@ public final class GitLabAPI {
 
     public GitLabGroup getGroup(int id) throws GitLabAPIException {
         try {
-            return delegate.retrieve().to(GitlabGroup.URL + PATH_SEP + id, GitLabGroup.class);
+            return delegate.retrieve().to(GitlabGroup.URL + PATH_SEP + id,
+                    GitLabGroup.class);
         } catch (Exception e) {
             throw new GitLabAPIException(e);
         }
     }
 
-    public GitlabCommit getCommit(int id, String ref) throws GitLabAPIException {
+    public GitlabCommit getCommit(int id, String ref)
+            throws GitLabAPIException {
         try {
             return delegate.getCommit(id, ref);
         } catch (Exception e) {
@@ -187,23 +215,26 @@ public final class GitLabAPI {
         }
     }
 
-    public List<GitlabRepositoryTree> getTree(int id, String ref, String path) throws GitLabAPIException {
+    public List<GitlabRepositoryTree> getTree(int id, String ref, String path)
+            throws GitLabAPIException {
         try {
-            Query query = new Query()
-                    .appendIf("path", path)
-                    .appendIf("ref", ref);
+            Query query = new Query().appendIf("path", path).appendIf("ref",
+                    ref);
 
-            query.append("per_page","10000");
-            String tailUrl = GitlabProject.URL + "/" + id + "/repository" + GitlabRepositoryTree.URL + query.toString();
+            query.append("per_page", "10000");
+            String tailUrl = GitlabProject.URL + "/" + id + "/repository"
+                    + GitlabRepositoryTree.URL + query.toString();
             LOGGER.fine("tailurl: " + tailUrl);
-            GitlabRepositoryTree[] tree = delegate.retrieve().to(tailUrl, GitlabRepositoryTree[].class);
+            GitlabRepositoryTree[] tree = delegate.retrieve().to(tailUrl,
+                    GitlabRepositoryTree[].class);
             return Arrays.asList(tree);
         } catch (Exception e) {
             throw new GitLabAPIException(e);
         }
     }
 
-    public GitlabSystemHook registerSystemHook(URL url) throws GitLabAPIException {
+    public GitlabSystemHook registerSystemHook(URL url)
+            throws GitLabAPIException {
         try {
             return registerSystemHook(url.toString());
         } catch (IOException e) {
@@ -219,9 +250,7 @@ public final class GitLabAPI {
             }
         }
 
-        return delegate.dispatch()
-                .with("url", url)
-                .with("push_events", false)
+        return delegate.dispatch().with("url", url).with("push_events", false)
                 .to("/hooks", GitlabSystemHook.class);
     }
 
@@ -245,7 +274,8 @@ public final class GitLabAPI {
         return false;
     }
 
-    public GitlabProjectHook registerProjectHook(URL url, int projectId) throws GitLabAPIException {
+    public GitlabProjectHook registerProjectHook(URL url, int projectId)
+            throws GitLabAPIException {
         try {
             return registerProjectHook(url.toString(), projectId);
         } catch (IOException e) {
@@ -253,18 +283,22 @@ public final class GitLabAPI {
         }
     }
 
-    private GitlabProjectHook registerProjectHook(String url, int projectId) throws IOException {
-        LOGGER.fine("registering project-hook for project " + projectId + ": " + url + "...");
+    private GitlabProjectHook registerProjectHook(String url, int projectId)
+            throws IOException {
+        LOGGER.fine("registering project-hook for project " + projectId + ": "
+                + url + "...");
         for (GitlabProjectHook hook : delegate.getProjectHooks(projectId)) {
             if (hook.getUrl().equals(url)) {
                 return hook;
             }
         }
 
-        return delegate.addProjectHook(projectId, url, true, false, true, true, false, false, apiToken);
+        return delegate.addProjectHook(projectId, url, true, false, true, true,
+                false, false, apiToken);
     }
 
-    public boolean unregisterProjectHook(URL url, int projectId) throws GitLabAPIException {
+    public boolean unregisterProjectHook(URL url, int projectId)
+            throws GitLabAPIException {
         try {
             return unregisterProjectHook(url.toString(), projectId);
         } catch (IOException e) {
@@ -272,21 +306,32 @@ public final class GitLabAPI {
         }
     }
 
-    private boolean unregisterProjectHook(String url, int projectId) throws IOException {
-        LOGGER.finer("looking up project-hooks for project " + projectId + "...");
+    private boolean unregisterProjectHook(String url, int projectId)
+            throws IOException {
+        LOGGER.finer(
+                "looking up project-hooks for project " + projectId + "...");
         for (GitlabProjectHook hook : delegate.getProjectHooks(projectId)) {
             if (hook.getUrl().equals(url)) {
-                LOGGER.fine("un-registering project-hook for project " + projectId + ": " + url + "...");
-                String tailUrl = GitlabProject.URL + PATH_SEP + hook.getProjectId() + GitlabProjectHook.URL + PATH_SEP + hook.getId();
-                delegate.retrieve().method(Method.DELETE).to(tailUrl, GitlabProjectHook[].class);
+                LOGGER.fine("un-registering project-hook for project "
+                        + projectId + ": " + url + "...");
+                String tailUrl = GitlabProject.URL + PATH_SEP
+                        + hook.getProjectId() + GitlabProjectHook.URL + PATH_SEP
+                        + hook.getId();
+                delegate.retrieve().method(Method.DELETE).to(tailUrl,
+                        GitlabProjectHook[].class);
                 return true;
             }
         }
         return false;
     }
 
-    private String projectUrl(String group, GitLabProjectSelector selector, GitLabProjectVisibility visibility, String searchPattern) {
-        StringBuilder urlBuilder = new StringBuilder(GitlabGroup.URL).append(PATH_SEP).append(group).append(GitLabProject.URL).append("?membership=true");
+    private String projectUrl(String group, GitLabProjectSelector selector,
+            GitLabProjectVisibility visibility, String searchPattern) {
+        final String encodeGroup = UrlEscapers.urlPathSegmentEscaper()
+                .escape(group);
+        StringBuilder urlBuilder = new StringBuilder(GitlabGroup.URL)
+                .append(PATH_SEP).append(encodeGroup).append(GitLabProject.URL)
+                .append("?membership=true");
         if (!VISIBLE.equals(selector)) {
             urlBuilder.append("&").append(selector.id()).append("=true");
         }
@@ -299,9 +344,10 @@ public final class GitLabAPI {
         return urlBuilder.toString();
     }
 
-
-    private String projectUrl(GitLabProjectSelector selector, GitLabProjectVisibility visibility, String searchPattern) {
-        StringBuilder urlBuilder = new StringBuilder(GitlabProject.URL).append("?membership=true");
+    private String projectUrl(GitLabProjectSelector selector,
+            GitLabProjectVisibility visibility, String searchPattern) {
+        StringBuilder urlBuilder = new StringBuilder(GitlabProject.URL)
+                .append("?membership=true");
         if (!VISIBLE.equals(selector)) {
             urlBuilder.append("&").append(selector.id()).append("=true");
         }
